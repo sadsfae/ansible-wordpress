@@ -1,5 +1,7 @@
 ## WordPress+Nginx+PHP-FPM+MariaDB Deployment
 
+[![GA](https://github.com/sadsfae/ansible-wordpress/actions/workflows/ansible-lint.yml/badge.svg)](https://github.com/sadsfae/ansible-wordpress/actions)
+
 - Requires Ansible 2.0 or newer
 - Expects Rocky 8.x or CentOS Stream host.
 
