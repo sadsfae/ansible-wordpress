@@ -1,0 +1,10 @@
+
+---
+# print informational messages after successful playbook run
+- name: Display Wordpress Setup Info
+  debug:
+    msg="Access your Wordpress setup at http://{{ansible_fqdn}}"
+
+- name: Display Plugins and Themes
+  debug:
+    msg="You'll probably want to also enable plugins Jetpack Markdown, Classic Editor and the Krusze Theme if used for QUADS, this is found in the settings area of wp-admin or http://yourhost/wp-admin"

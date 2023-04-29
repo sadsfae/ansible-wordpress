@@ -1,0 +1,101 @@
+---
+- name: Download WordPress
+  get_url: url=http://wordpress.org/wordpress-{{ wp_version }}.tar.gz dest=/srv/wordpress-{{ wp_version }}.tar.gz
+    checksum=sha256:"{{ wp_sha256sum }}"
+
+- name: Install unzip and tar
+  yum:
+    name: ['unzip', 'tar']
+    state: present
+
+- name: Extract archive
+  command: chdir=/srv/ /bin/tar xvf wordpress-{{ wp_version }}.tar.gz creates=/srv/wordpress
+
+- name: Add group "wordpress"
+  group: name=wordpress
+
+- name: Add user "wordpress"
+  user: name=wordpress group=wordpress home=/srv/wordpress/
+
+- name: Fetch random salts for WordPress config
+  local_action:
+    module: command
+    _raw_params: "curl https://api.wordpress.org/secret-key/1.1/salt/"
+  register: "wp_salt"
+
+- name: Create WordPress database
+  mysql_db: name={{ wp_db_name }} state=present
+
+- name: Create WordPress database user
+  mysql_user: name={{ wp_db_user }} password={{ wp_db_password }} priv={{ wp_db_name }}.*:ALL host='localhost' state=present
+
+- name: Copy WordPress config file
+  template: src=wp-config.php dest=/srv/wordpress/
+
+- name: Change ownership of WordPress installation
+  file: path=/srv/wordpress/ owner=wordpress group=wordpress state=directory recurse=yes
+
+- name: Copy Krusze Theme
+  copy:
+    src=theme/krusze.0.9.7.zip
+    dest=/tmp/krusze.0.9.7.zip
+
+- name: Copy Jetpack Markdown Plugin
+  copy:
+    src=plugin/jetpack-markdown.3.9.6.zip
+    dest=/tmp/jetpack-markdown.3.9.6.zip
+
+- name: Copy Classic Editor Plugin
+  copy:
+    src=plugin/classic-editor.1.4.zip
+    dest=/tmp/classic-editor.1.4.zip
+
+- name: Install Krusze Theme
+  command: unzip -n /tmp/krusze.0.9.7.zip -d /srv/wordpress/wp-content/themes/
+
+- name: Install Jetpack Markdown Plugin
+  command: unzip -n /tmp/jetpack-markdown.3.9.6.zip -d /srv/wordpress/wp-content/plugins/
+
+- name: Install Classic Editor Plugin
+  command: unzip -n /tmp/classic-editor.1.4.zip -d /srv/wordpress/wp-content/plugins/
+
+- name: install SEManage
+  yum: pkg=python3-policycoreutils state=present
+
+- name: Install Policy Core Utils
+  yum: pkg=policycoreutils-python-utils state=present
+
+- name: set the SELinux policy for the Wordpress directory
+  command: semanage fcontext -a -t httpd_sys_content_t "/srv/wordpress(/.*)?"
+  ignore_errors: true
+
+- name: set the SELinux policy for wp-config.php
+  command: semanage fcontext -a -t httpd_sys_script_exec_t "/srv/wordpress/wp-config\.php"
+  ignore_errors: true
+
+- name: set the SELinux policy for wp-content directory
+  command: semanage fcontext -a -t httpd_sys_rw_content_t "/srv/wordpress/wp-content(/.*)?"
+  ignore_errors: true
+
+- name: set the SELinux policy for the *.php files
+  command: semanage fcontext -a -t httpd_sys_script_exec_t "/srv/wordpress/.*\.php"
+  ignore_errors: true
+
+- name: set the SELinux policy for the Upgrade directory
+  command: semanage fcontext -a -t httpd_sys_rw_content_t "/srv/wordpress/wp-content/upgrade(/.*)?"
+  ignore_errors: true
+
+- name: set the SELinux policy for the Uploads directory
+  command: semanage fcontext -a -t httpd_sys_rw_content_t "/srv/wordpress/wp-content/uploads(/.*)?"
+  ignore_errors: true
+
+- name: set the SELinux policy for the wp-includes php files
+  command: semanage fcontext -a -t httpd_sys_script_exec_t "/srv/wordpress/wp-includes/.*\.php"
+  ignore_errors: true
+
+- name: set the SELinux on all the Files
+  command: restorecon -Rv /srv/wordpress
+  ignore_errors: true
+
+- name: Start php-fpm Service
+  service: name=php-fpm state=started enabled=yes
